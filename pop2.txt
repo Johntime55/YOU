@@ -1,0 +1,133 @@
+// Obțineți ID-ul cărții împrumutate din atributul data-bookid al butonului apăsat
+var borrowedBookId = $(this).data("bookid");
+
+// Apoi puteți continua cu apelul funcției returnBook(borrowedBookId)
+returnBook(borrowedBookId);
+
+
+// popup.js
+
+function showConfirmation(borrowedBookId) {
+    var result = confirm("Vrei să returnezi această carte?");
+
+    if (result) {
+        // Utilizatorul a apăsat "OK" (sau "Yes")
+        // Aici puteți adăuga logica pentru returnarea cărții
+        // De exemplu, puteți face o cerere Ajax către controler pentru a actualiza starea în baza de date.
+
+        // Apelați funcția de returnare a cărții și transmiteți borrowedBookId ca parametru
+        returnBook(borrowedBookId);
+    } else {
+        // Utilizatorul a apăsat "Cancel" (sau "No")
+        alert("Returnarea cărții a fost anulată.");
+    }
+}
+
+// Funcția pentru returnarea cărții prin intermediul unei cereri Ajax către controler
+function returnBook(borrowedBookId) {
+    $.ajax({
+        url: '/BorrowBook/ReturnBook', // Aici specificați URL-ul controlerului și acțiunii
+        type: 'POST',
+        data: { BorrowedBookId: borrowedBookId }, // Transmiteți borrowedBookId către controler
+        success: function (data) {
+            // Aici puteți trata răspunsul de la server, de exemplu, afișând un mesaj de succes
+            if (data.success) {
+                alert("Cartea a fost returnată cu succes!");
+                // Reîncărcați sau actualizați lista de cărți împrumutate
+                location.reload();
+            } else {
+                alert("A apărut o eroare la returnarea cărții.");
+            }
+        },
+        error: function () {
+            alert("A apărut o eroare la returnarea cărții.");
+        }
+    });
+}
+
+
+// This action handles the return of a borrowed book
+    [HttpPost]
+    public ActionResult ReturnBook(int BorrowedBookId)
+    {
+        var borrowedBook = db.Barrows.Find(BorrowedBookId);
+
+        if (borrowedBook != null && !borrowedBook.IsValidated && borrowedBook.ReturnDate.HasValue)
+        {
+            borrowedBook.ReturnDate = DateTime.Now;
+            borrowedBook.IsReturned = true;
+            db.SaveChanges();
+
+            var bookAvailable = db.BooksAvailables.FirstOrDefault(b => b.Isbn13 == borrowedBook.BookISBN);
+            if (bookAvailable != null)
+            {
+                bookAvailable.QtyAvailable++;
+                db.SaveChanges();
+            }
+
+            return Json(new { success = true });
+        }
+
+        return Json(new { success = false });
+    }
+
+
+
+
+@model List<MyLibrary.Models.Barrow>
+
+@{
+    ViewBag.Title = "My Borrowed Books";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>My Borrowed Books</h2>
+
+@if (!string.IsNullOrEmpty(TempData["ErrorMessage"] as string))
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+@if (!string.IsNullOrEmpty(TempData["SuccessMessage"] as string))
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>UserName</th>
+            <th>BookName</th>
+            <th>ISBN</th>
+            <th>BorrowDate</th>
+            <th>ReturnDate</th>
+            <th>Actions</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var book in Model)
+        {
+            <tr>
+                <td>@book.BorrowedBookId</td>
+                <td>@book.UserId</td>
+                <td>@book.BookName</td>
+                <td>@book.BookISBN</td>
+                <td>@book.BorrowDateFormated</td>
+                <td>
+                    @if (book.IsReturnded == true)
+                    {
+                        <text>Returned</text>
+                    }
+                    else
+                    {
+                        <a href="javascript:void(0);" onclick="showConfirmation(@book.BorrowedBookId)" class="btn btn-primary">Return book</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<script src="~/Scripts/popup.js"></script>

@@ -1,0 +1,144 @@
+// popup.js
+
+function showConfirmation(borrowedBookId) {
+    var result = confirm("Vrei să returnezi această carte?");
+
+    if (result) {
+        // Utilizatorul a apăsat "OK" (sau "Yes")
+        // Faceți o cerere AJAX pentru a efectua operația de returnare
+        $.ajax({
+            type: "POST",
+            url: "/BorrowBook/ReturnBook", // Ajustați calea către acțiunea din controler
+            data: { BorrowedBookId: borrowedBookId },
+            success: function (response) {
+                if (response.success) {
+                    // Operația de returnare a reușit, puteți afișa un mesaj de succes
+                    alert("Cartea a fost returnată cu succes!");
+                    // Aici puteți actualiza conținutul paginii sau faceți orice alte acțiuni necesare
+                } else {
+                    // Operația de returnare a eșuat, puteți afișa un mesaj de eroare
+                    alert("A apărut o eroare la returnarea cărții.");
+                }
+            },
+            error: function () {
+                // Eroare AJAX, afișați un mesaj de eroare
+                alert("Eroare de comunicare cu serverul.");
+            }
+        });
+    } else {
+        // Utilizatorul a apăsat "Cancel" (sau "No")
+        alert("Returnarea cărții a fost anulată.");
+    }
+}
+
+
+
+
+ // This action handles the return of a borrowed book
+        [HttpPost]
+        public ActionResult ReturnBook(int BorrowedBookId)
+        {
+            try
+            {
+                // Find the borrowed book by its unique ID
+                var borrowedBook = db.Barrows.Find(BorrowedBookId);
+
+                // Check if the borrowed book exists and has not been validated for return, and has a return date set
+                if (borrowedBook != null && !borrowedBook.IsValidated && borrowedBook.ReturnDate.HasValue)
+                {
+                    // Set a flag indicating the book has been returned (this is used for validation)
+                    borrowedBook.IsReturned = true;
+
+                    // Save the changes to the database
+                    db.SaveChanges();
+
+                    // Find the corresponding book in BooksAvailables
+                    var bookAvailable = db.BooksAvailables.FirstOrDefault(b => b.Isbn13 == borrowedBook.BookISBN);
+
+                    // Check if the book is found
+                    if (bookAvailable != null)
+                    {
+                        // Increase the available quantity of the book
+                        bookAvailable.QtyAvailable++;
+
+                        // Save the changes to the database
+                        db.SaveChanges();
+                    }
+
+                    // Return a JSON response to indicate success
+                    return Json(new { success = true });
+                }
+
+                // Return a JSON response to indicate failure
+                return Json(new { success = false, message = "The book could not be returned." });
+            }
+            catch (Exception ex)
+            {
+                // Return a JSON response with the error message
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+
+@model List<MyLibrary.Models.Barrow>
+
+@{
+    ViewBag.Title = "My Borrowed Books";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>My Borrowed Books</h2>
+
+<script src="~/Scripts/popup.js"></script>
+
+@if (!string.IsNullOrEmpty(TempData["ErrorMessage"] as string))
+{
+    <div class="alert alert-danger"> @TempData["ErrorMessage"]</div>
+}
+
+@if (!string.IsNullOrEmpty(TempData["SuccesMessage"] as string))
+{
+    <div class="alert alert-danger"> @TempData["SuccesMessage"]</div>
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>UserName</th>
+            <th>BookName</th>
+            <th>ISBN</th>
+            <th>BorrowDate</th>
+            <th>ReturnDate</th>
+            <th>Actions</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var book in Model)
+        {
+        <tr>
+            <td>@book.BorrowedBookId</td>
+            <td>@book.UserId</td>
+            <td>@book.BookName</td>
+            <td>@book.BookISBN</td>
+            <td>@book.BorrowDateFormated</td>
+            <td>
+            <td>
+               <td>
+    @if (book.IsReturned == true)
+    {
+        <text>Returned</text>
+    }
+    else
+    {
+        <a href="#" onclick="showConfirmation('@book.BorrowedBookId')" class="btn btn-primary">Return book</a>
+    }
+</td>
+
+
+
+        </tr>
+        }
+    </tbody>
+</table>
