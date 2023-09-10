@@ -1,0 +1,224 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using MyLibrary.Models;
+
+
+namespace MyLibrary.Controllers
+{
+    public class LibrariesController : Controller
+    {
+        private I_CoposEntities db = new I_CoposEntities();
+
+        // GET: Libraries
+        public ActionResult Index()
+        {
+            return View(db.Libraries.OrderBy(p => p.Author).Distinct().ToList());
+        }
+
+       
+
+        // GET: Libraries/Create
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: Libraries/Create
+        // To protect from overposting attacks, enable the specific properties you want to bind to, for 
+        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Create([Bind(Include = "id,BookName,Author,Isbn13,Isbn10,Publisher,YearPublished,CoverImage,QtyAvailable")] Library library)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Libraries.Add(library);
+                db.SaveChanges();
+                var bookAvailable=db.BooksAvailables.FirstOrDefault(b => b.BookName == library.BookName);
+                if (bookAvailable != null)
+                {
+                    bookAvailable.QtyAvailable = library.QtyAvailable;
+                }
+                else
+                {
+                    db.BooksAvailables.Add(new BooksAvailable
+                    {
+                        BookName = library.BookName,
+                        QtyAvailable = library.QtyAvailable,
+                    });
+                }
+                db.SaveChanges();
+
+                // Apelarea metodei UpdateAvailableBooksCount pentru a actualiza cantitatea disponibilă
+                UpdateAvailableBooksCount();
+
+                return RedirectToAction("Index");
+            }
+
+            return View(library);
+        }
+
+        //În acest cod, verificăm dacă cantitatea nouă este mai mare sau egală cu cantitatea curentă din baza de date.Dacă nu, adăugăm o eroare de model și nu permitem salvarea modificărilor.
+
+        //Această metodă vă va ajuta să vă asigurați că cantitatea disponibilă a cărții nu poate fi setată la o valoare mai mică decât numărul de cărți împrumutate sau numărul de cărți aflate pe lista de așteptare.
+
+        // Acțiunea pentru afișarea paginii de editare a cărții
+        public ActionResult Edit(int id)
+        {
+            // Găsim cartea din baza de date pe baza ID-ului primit
+            var book = db.Libraries.Find(id);
+            if (book == null)
+            {
+                // Dacă cartea nu există, returnăm o eroare HTTP 404 (Not Found)
+                return HttpNotFound();
+            }
+            // Returnăm pagina de editare cu cartea
+            return View(book);
+        }
+
+        // Acțiunea pentru procesarea datelor trimise prin POST la salvarea modificărilor
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Edit(Library book)
+        {
+            if (ModelState.IsValid)
+            {
+                // Găsim cartea existentă din baza de date pe baza ID-ului primit
+                var existingBook = db.Libraries.Find(book.id);
+                if (existingBook == null)
+                {
+                    // Dacă cartea nu există, returnăm o eroare HTTP 404 (Not Found)
+                    return HttpNotFound();
+                }
+
+                // Verificăm dacă cantitatea nouă este validă
+                if (book.QtyAvailable >= existingBook.QtyAvailable)
+                {
+                    // Actualizăm cantitatea disponibilă cu cea nouă și salvăm în baza de date
+                    existingBook.QtyAvailable = book.QtyAvailable;
+                    db.SaveChanges();
+
+                    // Redirectăm către pagina principală după salvare
+                    return RedirectToAction("Index");
+                }
+                else
+                {
+                    // Adăugăm o eroare de model în cazul în care cantitatea nu este validă
+                    ModelState.AddModelError("QtyAvailable", "Cantitatea nu poate fi mai mică decât numărul de cărți împrumutate sau de pe lista de așteptare.");
+                }
+            }
+            // Reafișăm pagina de editare cu erorile de validare afișate, dacă există
+            return View(book);
+        }
+
+
+
+
+        // GET: Libraries/Delete/5
+        public ActionResult Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Library library = db.Libraries.Find(id);
+            if (library == null)
+            {
+                return HttpNotFound();
+            }
+            return View(library);
+        }
+
+        // POST: Libraries/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public ActionResult DeleteConfirmed(int id)
+        {
+            // Check if the book is borrowed by any user
+            bool isBookBorrowed = db.Barrows.Any(b => b.BorrowedBookId == id);
+
+            // Check if the book is in the waitlist
+            bool isBookInWaitlist = db.Waitlists.Any(w => w.WaitlistId == id);
+
+            if (isBookBorrowed)
+            {
+                // If the book is borrowed, set an error message
+                TempData["ErrorMessage"] = "The book is borrowed, you cannot delete it!";
+            }
+            else if (isBookInWaitlist)
+            {
+                // If the book is in the waiting list, set an error message
+                TempData["ErrorMessage"] = "The book is in the waiting list, you cannot delete it!";
+            }
+            else
+            {
+                // If the book is neither borrowed nor in the waitlist, proceed with deletion
+
+                // Find the book in the Libraries table
+                Library library = db.Libraries.Find(id);
+                if (library == null)
+                {
+                    // If the book is not found, return an HTTP 404 (Not Found) error
+                    return HttpNotFound();
+                }
+
+                // Remove the book from the Libraries table
+                db.Libraries.Remove(library);
+
+                // Find the corresponding entry in the BooksAvailables table
+                BooksAvailable bookAvailable = db.BooksAvailables.FirstOrDefault(ba => ba.id == id);
+                if (bookAvailable != null)
+                {
+                    // If a corresponding entry is found, remove it
+                    db.BooksAvailables.Remove(bookAvailable);
+                }
+
+                // Save changes to the database
+                db.SaveChanges();
+
+                // Apelarea metodei UpdateAvailableBooksCount pentru a actualiza cantitatea disponibilă
+                UpdateAvailableBooksCount();
+
+                // Set a success message
+                TempData["SuccessMessage"] = "The book has been deleted successfully";
+            }
+
+            // Redirect to the Index page after the operation is completed
+            return RedirectToAction("Index");
+        }
+
+        private void UpdateAvailableBooksCount()
+        {
+            var availableBooksCount = db.Libraries.Sum(l => l.QtyAvailable); // Calculează suma cantității disponibile din tabela Library
+            var borrowedBooksCount = db.Barrows.Count(); // Calculează numărul de cărți împrumutate din tabela Barrow
+            var waitlistedBooksCount = db.Waitlists.Count(); // Calculează numărul de cărți din lista de așteptare din tabela Waitlist
+
+            var totalAvailableCount = availableBooksCount - borrowedBooksCount + waitlistedBooksCount;
+
+            // Actualizează cantitatea disponibilă în BooksAvailables cu valoarea calculată
+            var booksAvailable = db.BooksAvailables.FirstOrDefault();
+            if (booksAvailable != null)
+            {
+                booksAvailable.QtyAvailable = totalAvailableCount;
+                db.SaveChanges();
+            }
+        }
+
+
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

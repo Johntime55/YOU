@@ -1,0 +1,134 @@
+using System;
+using System.Linq;
+using System.Web.Mvc;
+using MyLibrary.Models;
+using System.Data.Entity;
+using System.Net;
+using MyLibrary.ADClasses;
+
+namespace MyLibrary.Controllers
+{
+    public class BorrowBookController : Controller
+    {
+        private I_CoposEntities db = new I_CoposEntities(); // Create an instance of the database context
+        UserInfo user = new UserInfo();
+
+        // This action displays the books borrowed by the user
+        public ActionResult MyBorrowedBooks()
+        {
+            // Retrieve and display the list of borrowed books, ordered by BorrowedBookId
+            return View(db.Barrows.OrderBy(p => p.BorrowedBookId).Distinct().ToList());
+        }
+
+        // This action handles the return of a borrowed book
+        public ActionResult ReturnBook(int BorrowedBookId)
+        {
+            // Find the borrowed book by its unique ID
+            var borrowedBook = db.Barrows.Find(BorrowedBookId);
+
+            // Check if the borrowed book exists and has not been validated for return, and has a return date set
+            if (borrowedBook != null && !borrowedBook.IsValidated && borrowedBook.ReturnDate.HasValue)
+            {
+                // Update the return date to the current date and set IsReturned to true
+                borrowedBook.ReturnDate = DateTime.Now;
+                borrowedBook.IsReturned = true;
+
+                // Save the changes to the database
+                db.SaveChanges();
+
+                // Find the corresponding book in BooksAvailables
+                var bookAvailable = db.BooksAvailables.FirstOrDefault(b => b.Isbn13 == borrowedBook.BookISBN);
+
+                // Check if the book is found
+                if (bookAvailable != null)
+                {
+                    // Increase the available quantity of the book
+                    bookAvailable.QtyAvailable++;
+
+                    // Save the changes to the database
+                    db.SaveChanges();
+                }
+
+                // Set a success message for the user
+                TempData["SuccessMessage"] = "The book has been successfully returned";
+            }
+
+            // Redirect the user to their list of borrowed books
+            return RedirectToAction("MyBorrowedBooks");
+        }
+
+
+        // This action handles the validation of a book return
+        public ActionResult ValidateReturn(int BorrowedBookId)
+        {
+            // Find the borrowed book by its ID and mark it as validated
+            var borrowedBook = db.Barrows.Find(BorrowedBookId);
+            if (borrowedBook != null)
+            {
+                borrowedBook.IsValidated = true;
+                db.SaveChanges();
+            }
+            return RedirectToAction("MyBorrowedBooks");
+        }
+
+        [HttpGet]
+        // This action displays the borrowing form
+        public ActionResult Borrow()
+        {
+            // Display error or success messages, if any
+            ViewBag.ErrorMessage = TempData["ErrorMessage"];
+            ViewBag.SuccessMessage = TempData["SuccessMessage"];
+            return View();
+        }
+
+        [HttpPost]
+        // This action processes the book borrowing
+        public ActionResult Borrow(string isbn13)
+        {
+            // Find the book by ISBN-13
+            var book = db.BooksAvailables.FirstOrDefault(b => b.Isbn13 == isbn13);
+
+            if (user.isLoggedIn()) // Check if the user is logged in
+            {
+                string currentUserId = getUserName();
+
+                if (book.QtyAvailable > 0) // Check if the book is available
+                {
+                    book.QtyAvailable--; // Decrease the available quantity
+
+                    // Create a record in the Barrows table for the borrowed book
+                    Barrow borrowedBook = new Barrow
+                    {
+                        UserId = currentUserId,
+                        BookName = book.BookName,
+                        BookISBN = book.Isbn13,
+                        BorrowDate = DateTime.Now,
+                        ReturnDate = DateTime.Now.AddDays(14) // Set the return date to 14 days from now
+                    };
+
+                    db.Barrows.Add(borrowedBook); // Add the borrowed book to the database
+                    db.SaveChanges(); // Save changes to the database
+
+                    TempData["SuccessMessage"] = "The book has been borrowed successfully!";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "The book is not available for loan.";
+                }
+
+                return RedirectToAction("MyBorrowedBooks");
+            }
+            else
+            {
+                return RedirectToAction("LoginPage", "Account"); // Redirect the user to the login page
+            }
+        }
+
+        // This method retrieves the username
+        public string getUserName()
+        {
+            UserInfo user = new UserInfo();
+            return user.getUsername();
+        }
+    }
+}

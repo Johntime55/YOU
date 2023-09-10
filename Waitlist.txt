@@ -1,0 +1,155 @@
+using System;
+using System.Linq;
+using System.Web.Mvc;
+using MyLibrary.Models;
+using System.Data.Entity;
+using System.Net;
+using MyLibrary.ADClasses;
+
+namespace MyLibrary.Controllers
+{
+    public class WaitListController : Controller
+    {
+        private I_CoposEntities db = new I_CoposEntities(); // Create an instance of the database context
+        UserInfo user = new UserInfo(); // Create an instance of the UserInfo class
+
+        // Action for displaying the user's waitlist
+        public ActionResult MyWaitList()
+        {
+            // Retrieve and display the user's waitlist
+            return View(db.Waitlists.OrderBy(p => p.WaitlistId).Distinct().ToList());
+        }
+
+        // Action for returning a book from the waitlist
+        public ActionResult ReturnBook(int WaitlistId)
+        {
+            // Find the waitlisted book by its unique ID
+            var waitlistedBook = db.Waitlists.Find(WaitlistId);
+
+            // Check if the waitlisted book exists and has not been validated for return, and has a return date set
+            if (waitlistedBook != null && !waitlistedBook.IsValidated && waitlistedBook.ReturnDate.HasValue)
+            {
+                // Update the return date to the current date and set IsReturned to true
+                waitlistedBook.ReturnDate = DateTime.Now;
+                waitlistedBook.IsReturned = true;
+
+                // Save the changes to the database
+                db.SaveChanges();
+
+                // Find the corresponding book in BooksAvailables
+                var bookAvailable = db.BooksAvailables.FirstOrDefault(b => b.Isbn13 == waitlistedBook.BookISBN);
+
+                // Check if the book is found
+                if (bookAvailable != null)
+                {
+                    // Increase the available quantity of the book
+                    bookAvailable.QtyAvailable++;
+
+                    // Save the changes to the database
+                    db.SaveChanges();
+                }
+
+                // Set a success message for the user
+                TempData["SuccessMessage"] = "The book has been removed from the waiting list";
+            }
+
+            // Redirect the user to their list of waitlisted books
+            return RedirectToAction("MyWaitList");
+        }
+
+        // Action for joining the waitlist for a book
+        public ActionResult Join()
+        {
+            // Display any error or success messages
+            ViewBag.ErrorMessage = TempData["ErrorMessage"];
+            ViewBag.SuccessMessage = TempData["SuccessMessage"];
+
+            // Display the join waitlist form
+            return View();
+        }
+
+        [HttpPost]
+        // Action for processing the waitlist entry for a book
+        public ActionResult Join(string isbn13)
+        {
+            // Validate the ISBN-13
+            if (string.IsNullOrEmpty(isbn13) || isbn13.Length != 13)
+            {
+                TempData["ErrorMessage"] = "ISBN-13 must be 13 digits long.";
+                return RedirectToAction("Join");
+            }
+
+            // Find the book in BooksAvailables by ISBN-13
+            var book = db.BooksAvailables.FirstOrDefault(b => b.Isbn13 == isbn13);
+
+            // Check if the book exists
+            if (book == null)
+            {
+                TempData["ErrorMessage"] = "The book with this ISBN-13 does not exist in the library.";
+                return RedirectToAction("Join");
+            }
+
+            // Check if the user is logged in
+            if (user.isLoggedIn())
+            {
+                // Get the current user's ID
+                string currentUserId = getUserName();
+
+                // Check if the book is available for waitlist
+                if (book.QtyAvailable >= -500)
+                {
+                    // Decrease the available quantity of the book
+                    book.QtyAvailable--;
+
+                    // Create a new waitlist entry
+                    Waitlist waitlistedBook = new Waitlist
+                    {
+                        UserId = currentUserId,
+                        BookName = book.BookName,
+                        BookISBN = book.Isbn13,
+                        RegistrationDate = DateTime.Now,
+                        ReturnDate = DateTime.Now.AddDays(1)
+                    };
+
+                    // Add the waitlist entry to the database
+                    db.Waitlists.Add(waitlistedBook);
+                    db.SaveChanges();
+
+                    // Set a success message for the user
+                    TempData["SuccessMessage"] = "The book was successfully listed in the Waitlist!";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "The book is not available for WaitList.";
+                }
+
+                // Redirect the user to their waitlist
+                return RedirectToAction("MyWaitList");
+            }
+            else
+            {
+                // Redirect the user to the login page if not logged in
+                return RedirectToAction("LoginPage", "Account");
+            }
+        }
+
+        // Method to get the current user's username
+        public string getUserName()
+        {
+            UserInfo user = new UserInfo();
+            return user.getUsername();
+        }
+
+        // Action for returning a book from the waitlist (duplicate method, needs review)
+        //public ActionResult ReturnBook(int WaitlistId)
+        //{
+        //    var waitlistedBook = db.Barrows.Find(WaitlistId);
+        //    if (waitlistedBook != null)
+        //    {
+        //        waitlistedBook.ReturnDate = DateTime.Now;
+        //        db.SaveChanges();
+        //    }
+        //    return RedirectToAction("MyWaitList");
+        //}
+    }
+}
