@@ -1,0 +1,45 @@
+$(document).ready(function () {
+    // Ascunde caseta de dialog când se încarcă pagina
+    $("#returnPopup").hide();
+
+    // Dă clic pe butonul "Return book" pentru a arăta caseta de dialog
+    $(".return-button").click(function (e) {
+        e.preventDefault();
+        $("#returnPopup").show();
+    });
+
+    // Dă clic pe butonul de confirmare pentru a face cererea AJAX
+    $("#confirmReturn").click(function () {
+        // Obțineți ID-ul cărții pentru a o returna
+        var borrowedBookId = $(this).data("book-id");
+
+        // Faceți cererea AJAX pentru a efectua operația de returnare
+        $.ajax({
+            type: "POST",
+            url: "/BorrowBook/ReturnBook",
+            data: { BorrowedBookId: borrowedBookId },
+            success: function (response) {
+                if (response.success) {
+                    // Operația de returnare a reușit, puteți afișa un mesaj de succes
+                    alert("Cartea a fost returnată cu succes!");
+                    // Aici puteți actualiza conținutul paginii sau faceți orice alte acțiuni necesare
+                    // Închideți caseta de dialog
+                    $("#returnPopup").hide();
+                } else {
+                    // Operația de returnare a eșuat, puteți afișa un mesaj de eroare
+                    alert("A apărut o eroare la returnarea cărții.");
+                }
+            },
+            error: function () {
+                // Eroare AJAX, afișați un mesaj de eroare
+                alert("Eroare de comunicare cu serverul.");
+            }
+        });
+    });
+
+    // Dă clic pe butonul de anulare pentru a închide caseta de dialog
+    $("#cancelReturn").click(function () {
+        $("#returnPopup").hide();
+    });
+});
+￼Enter
