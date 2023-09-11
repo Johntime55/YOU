@@ -1,0 +1,202 @@
+@model List<MyLibrary.Models.Barrow>
+
+@{
+    ViewBag.Title = "My Borrowed Books";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>My Borrowed Books</h2>
+
+<!-- Adăugați acest div pentru popup Bootstrap -->
+<div class="modal fade" id="returnModal" tabindex="-1" role="dialog" aria-labelledby="returnModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="returnModalLabel">Confirmare Returnare Carte</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                Sigur vrei să returnezi această carte?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+                <button type="button" class="btn btn-primary" id="confirmReturn">Yes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(TempData["ErrorMessage"] as string))
+{
+    <div class="alert alert-danger"> @TempData["ErrorMessage"]</div>
+}
+
+@if (!string.IsNullOrEmpty(TempData["SuccesMessage"] as string))
+@model List<MyLibrary.Models.Barrow>
+
+@{
+    ViewBag.Title = "My Borrowed Books";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>My Borrowed Books</h2>
+
+<!-- Adăugați acest div pentru popup Bootstrap -->
+<div class="modal fade" id="returnModal" tabindex="-1" role="dialog" aria-labelledby="returnModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="returnModalLabel">Confirmare Returnare Carte</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                Sigur vrei să returnezi această carte?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+                <button type="button" class="btn btn-primary" id="confirmReturn">Yes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(TempData["ErrorMessage"] as string))
+{
+    <div class="alert alert-danger"> @TempData["ErrorMessage"]</div>
+}
+
+@if (!string.IsNullOrEmpty(TempData["SuccesMessage"] as string))
+{
+    <div class="alert alert-success"> @TempData["SuccesMessage"]</div>
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>UserName</th>
+            <th>BookName</th>
+            <th>ISBN</th>
+            <th>BorrowDate</th>
+            <th>ReturnDate</th>
+            <th>Actions</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var book in Model)
+        {
+            <tr>
+                <td>@book.BorrowedBookId</td>
+                <td>@book.UserId</td>
+                <td>@book.BookName</td>
+                <td>@book.BookISBN</td>
+                <td>@book.BorrowDateFormated</td>
+                <td>
+                <td>
+                   <td>
+                    @if (book.IsReturned == true)
+                    {
+                        <text>Returned</text>
+                    }
+                    else
+                    {
+                        <!-- Aici am adăugat un atribut data-toggle și data-target pentru a deschide modalul Bootstrap -->
+                        <a href="#" data-toggle="modal" data-target="#returnModal" class="btn btn-primary">Return book</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+    // Funcție pentru a gestiona confirmarea returnării
+    $('#confirmReturn').on('click', function () {
+        // Obțineți ID-ul cărții pe care doriți să o returnați
+        var borrowedBookId = /* Aici obțineți ID-ul cărții dvs. */;
+        
+        // Faceți o cerere AJAX pentru a efectua operația de returnare
+        $.ajax({
+            type: "POST",
+            url: "/BorrowBook/ReturnBook",
+            data: { BorrowedBookId: borrowedBookId },
+            success: function (response) {
+                if (response.success) {
+                    // Operația de returnare a reușit, puteți afișa un mesaj de succes
+                    alert("Cartea a fost returnată cu succes!");
+                    $('#returnModal').modal('hide'); // Închideți modalul Bootstrap
+                    // Aici puteți actualiza conținutul paginii sau faceți orice alte acțiuni necesare
+                } else {
+                    // Operația de returnare a eșuat, puteți afișa un mesaj de eroare
+                    alert("A apărut o eroare la returnarea cărții.");
+                    $('#returnModal').modal('hide'); // Închideți modalul Bootstrap
+                }
+            },
+            error: function () {
+                // Eroare AJAX, afișați un mesaj de eroare
+                alert("Eroare de comunicare cu serverul.");
+                $('#returnModal').modal('hide'); // Închideți modalul Bootstrap
+            }
+        });
+    });
+</script>
+￼Enter{
+    <div class="alert alert-success"> @TempData["SuccesMessage"]</div>
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>UserName</th>
+            <th>BookName</th>
+            <th>ISBN</th>
+            <th>BorrowDate</th>
+            <th>ReturnDate</th>
+            <th>Actions</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var book in Model)
+        {
+            <tr>
+                <td>@book.BorrowedBookId</td>
+                <td>@book.UserId</td>
+                <td>@book.BookName</td>
+                <td>@book.BookISBN</td>
+                <td>@book.BorrowDateFormated</td>
+          <td>
+                <td>
+                   <td>
+                    @if (book.IsReturned == true)
+                    {
+                        <text>Returned</text>
+                    }
+                    else
+                    {
+                        <!-- Aici am adăugat un atribut data-toggle și data-target pentru a deschide modalul Bootstrap -->
+                        <a href="#" data-toggle="modal" data-target="#returnModal" class="btn btn-primary">Return book</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+    // Funcție pentru a gestiona confirmarea returnării
+    $('#confirmReturn').on('click', function () {
+        // Obțineți ID-ul cărții pe care doriți să o returnați
+        var borrowedBookId = /* Aici obțineți ID-ul cărții dvs. */;
