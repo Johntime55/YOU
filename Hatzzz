@@ -1,0 +1,78 @@
+@model IEnumerable<MyLibrary.Models.BooksAvailable>
+
+<!-- Afișează o listă de cărți disponibile cu buton pentru Details -->
+<table class="table">
+    <thead>
+        <tr>
+            <th>Book Name</th>
+            <th>Author</th>
+            <th>Publisher</th>
+            <th>Year Published</th>
+            <th>ISBN</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var book in Model)
+        {
+            <tr>
+                <td>@book.BookName</td>
+                <td>@book.Author</td>
+                <td>@book.Publisher</td>
+                <td>@book.YearPublished</td>
+                <td>@book.Isbn13</td>
+                <td>
+                    <button class="details-button" data-bookname="@book.BookName"
+                            data-author="@book.Author" data-publisher="@book.Publisher"
+                            data-yearpublished="@book.YearPublished" data-isbn="@book.Isbn13">
+                        Details
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- Popup pentru afișarea detaliilor -->
+<div id="details-popup" class="popup">
+    <div class="popup-content">
+        <h2>Detalii carte</h2>
+        <p>Nume carte: <span id="popup-bookName"></span></p>
+        <p>Autor: <span id="popup-author"></span></p>
+        <p>Publisher: <span id="popup-publisher"></span></p>
+        <p>Year Published: <span id="popup-yearPublished"></span></p>
+        <p>ISBN: <span id="popup-isbn"></span></p>
+        <button onclick="closePopup()">Închide</button>
+    </div>
+</div>
+
+// Funcția pentru afișarea casetei de dialog pop-up cu detalii
+function showDetailsPopup(bookName, author, publisher, yearPublished, isbn) {
+    document.getElementById("popup-bookName").textContent = bookName;
+    document.getElementById("popup-author").textContent = author;
+    document.getElementById("popup-publisher").textContent = publisher;
+    document.getElementById("popup-yearPublished").textContent = yearPublished;
+    document.getElementById("popup-isbn").textContent = isbn;
+    document.getElementById("details-popup").style.display = "block";
+}
+
+// Funcția pentru închiderea casetei de dialog pop-up cu detalii
+function closePopup() {
+    document.getElementById("details-popup").style.display = "none";
+}
+
+// Adaugă un eveniment pentru butoanele "Details" pentru a afișa popup-ul cu detalii
+var detailsButtons = document.querySelectorAll(".details-button");
+detailsButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+        var bookName = this.getAttribute("data-bookname");
+        var author = this.getAttribute("data-author");
+        var publisher = this.getAttribute("data-publisher");
+        var yearPublished = this.getAttribute("data-yearpublished");
+        var isbn = this.getAttribute("data-isbn");
+
+        showDetailsPopup(bookName, author, publisher, yearPublished, isbn);
+    });
+});
+
+￼Enter
